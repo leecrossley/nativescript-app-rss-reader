@@ -1,0 +1,6 @@
+{
+    "name": "nativescript-app-rss-reader",
+    "private": true,
+    "main": "app.js",
+    "version": "0.0.1"
+}
