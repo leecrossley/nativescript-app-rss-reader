@@ -1,70 +1,57 @@
-﻿var promises = require("promises/promises");
-var imageSource = require("image-source/image-source");
-
-var imagePickerController;
-
-var CameraManager = (function () {
-    function CameraManager() {
-    }
-    CameraManager.prototype.takePicture = function (params, onSuccess, onError) {
-    };
-
-    CameraManager.prototype.pictureFromLibrary = function (params, onSuccess, onError) {
-    };
-    return CameraManager;
-})();
-exports.CameraManager = CameraManager;
-
-function topViewController() {
-    return topViewControllerWithRootViewController(UIApplication.sharedApplication().keyWindow.rootViewController);
-}
-
-function topViewControllerWithRootViewController(rootViewController) {
-    if (rootViewController.isKindOfClass(UITabBarController.class())) {
-        return topViewControllerWithRootViewController(rootViewController.selectedViewController);
-    } else if (rootViewController.isKindOfClass(UINavigationController.class())) {
-        return topViewControllerWithRootViewController(rootViewController.visibleViewController);
-    } else if (rootViewController.presentedViewController) {
-        return topViewControllerWithRootViewController(rootViewController.presentedViewController);
-    } else {
-        return rootViewController;
-    }
-}
-
-exports.takePicture = function (options) {
-    var d = promises.defer();
-
-    var listener;
-
-    var ImagePickerControllerListener = NSObject.extend({
-        imagePickerControllerDidFinishPickingMediaWithInfo: function (picker, info) {
-            console.log('takeImage received');
-            picker.presentingViewController.dismissViewControllerAnimatedCompletion(true, null);
-
-            listener = null;
-            var image = imageSource.fromNativeSource(info.valueForKey(UIImagePickerControllerOriginalImage));
-            d.resolve(image);
-        },
-        imagePickerControllerDidCancel: function (picker) {
-            console.info('takeImage canceled');
-            picker.presentingViewController.dismissViewControllerAnimatedCompletion(true, null);
-
-            listener = null;
-            d.reject(new Error('takePicture canceled by user'));
-        }
-    }, {
-        protocols: [UIImagePickerControllerDelegate]
-    });
-
-    imagePickerController = new UIImagePickerController();
-    listener = new ImagePickerControllerListener();
-    imagePickerController.delegate = listener;
-    imagePickerController.mediaTypes = UIImagePickerController.availableMediaTypesForSourceType(1 /* UIImagePickerControllerSourceTypeCamera */);
-    imagePickerController.sourceType = 1 /* UIImagePickerControllerSourceTypeCamera */;
-    imagePickerController.modalPresentationStyle = 3 /* UIModalPresentationCurrentContext */;
-
-    topViewController().presentViewControllerAnimatedCompletion(imagePickerController, true, null);
-
-    return d.promise();
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
 };
-//# sourceMappingURL=camera.ios.js.map
+var imageSource = require("image-source");
+var frame = require("ui/frame");
+var UIImagePickerControllerDelegateImpl = (function (_super) {
+    __extends(UIImagePickerControllerDelegateImpl, _super);
+    function UIImagePickerControllerDelegateImpl() {
+        _super.apply(this, arguments);
+    }
+    UIImagePickerControllerDelegateImpl.new = function () {
+        return _super.new.call(this);
+    };
+    UIImagePickerControllerDelegateImpl.prototype.initWithCallback = function (callback) {
+        this._callback = callback;
+        return this;
+    };
+    UIImagePickerControllerDelegateImpl.prototype.imagePickerControllerDidFinishPickingMediaWithInfo = function (picker, info) {
+        if (info) {
+            var source = info.valueForKey(UIImagePickerControllerOriginalImage);
+            if (source) {
+                var image = imageSource.fromNativeSource(source);
+                if (this._callback) {
+                    this._callback(image);
+                }
+            }
+        }
+        picker.presentingViewController.dismissViewControllerAnimatedCompletion(true, null);
+    };
+    UIImagePickerControllerDelegateImpl.prototype.imagePickerControllerDidCancel = function (picker) {
+        picker.presentingViewController.dismissViewControllerAnimatedCompletion(true, null);
+    };
+    UIImagePickerControllerDelegateImpl.ObjCProtocols = [UIImagePickerControllerDelegate];
+    return UIImagePickerControllerDelegateImpl;
+})(NSObject);
+exports.takePicture = function () {
+    return new Promise(function (resolve, reject) {
+        var imagePickerController = new UIImagePickerController();
+        var listener = UIImagePickerControllerDelegateImpl.new().initWithCallback(resolve);
+        imagePickerController.delegate = listener;
+        if (UIDevice.currentDevice().model !== "iPhone Simulator") {
+            imagePickerController.mediaTypes = UIImagePickerController.availableMediaTypesForSourceType(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera);
+            imagePickerController.sourceType = UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera;
+        }
+        imagePickerController.modalPresentationStyle = UIModalPresentationStyle.UIModalPresentationCurrentContext;
+        var topMostFrame = frame.topmost();
+        if (topMostFrame) {
+            var viewController = topMostFrame.currentPage && topMostFrame.currentPage.ios;
+            if (viewController) {
+                viewController.presentModalViewControllerAnimated(imagePickerController, true);
+            }
+        }
+    });
+};
